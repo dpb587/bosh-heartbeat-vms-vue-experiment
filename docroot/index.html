@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>bosh vms --vitals</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tachyons/4.7.2/tachyons.min.css" integrity="sha256-Ja0Q+rWNdWf54uvcqwyPBEgvSE+1HMqud1vsKzb8SEo=" crossorigin="anonymous" />
+  </head>
+  <body class="bg-black-90 code ma0 white-90">
+    <div id="vms">
+      <section class="code">
+        <table class="w-100">
+          <thead>
+            <tr class="pointer white-50">
+              <th class="tl" v-on:click="sortvms('name')">name / id [deployment]</th>
+              <th v-on:click="sortvms('job_state')">state</th>
+              <th v-on:click="sortvms('xvda')">xvda</th>
+              <th v-on:click="sortvms('xvdb')">xvdb</th>
+              <th v-on:click="sortvms('xvdf')">xvdf</th>
+              <th v-on:click="sortvms('1m')">1m</th>
+              <th v-on:click="sortvms('5m')">5m</th>
+              <th v-on:click="sortvms('15m')">15m</th>
+              <th class="tr" v-on:click="sortvms('at')">at</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="vm in vms">
+              <td v-bind:title="vm.deployment">{{vm.job}}/{{vm.node_id}}</td>
+              <td class="tc"><span v-bind:class="[vm.job_state != 'running' ? 'dark-red' : '']">{{vm.job_state}}</span></td>
+              <td class="tc">{{vm.vitals.disk.system.percent}}%</td>
+              <td class="tc"><span v-if="vm.vitals.disk.ephemeral">{{vm.vitals.disk.ephemeral.percent}}%</span><span v-else>&mdash;</span></td>
+              <td class="tc"><span v-if="vm.vitals.disk.persistent">{{vm.vitals.disk.persistent.percent}}%</span><span v-else>&mdash;</span></td>
+              <td class="tc">{{vm.vitals.load[0]}}</td>
+              <td class="tc">{{vm.vitals.load[1]}}</td>
+              <td class="tc">{{vm.vitals.load[2]}}</td>
+              <td class="tr">{{vm.at}}</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.3.3/vue.min.js" integrity="sha256-dCvRWClQPYqeAQPjy3igNtsd9//GfxEAKN6Fx/VuYzw=" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/datejs/1.0/date.min.js" integrity="sha256-xljKCznmrf+eJGt+Yxyo+Z3KHpxlppBZSjyDlutbOh0=" crossorigin="anonymous"></script>
+    <script>
+      var sorters = {
+        generic_string: function (a, b) {
+          return a.localeCompare(b);
+        },
+        generic_float: function (a, b) {
+          var ap = parseFloat(a);
+          var bp = parseFloat(b);
+
+          return ap == bp ? 0 : (ap < bp ? -1 : 1);
+        },
+
+        by_name: function (a, b) {
+          if (a.deployment == b.deployment) {
+            var aa = a.job + '/' + a.node_id
+            var bb = b.job + '/' + b.node_id
+
+            if (aa < bb) {
+              return -1;
+            }
+
+            return 1;
+          } else if (a.deployment < b.deployment) {
+            return -1;
+          }
+
+          return 1;
+        },
+        by_job_state: function (a, b) { return sorters.generic_string(a.job_state, b.job_state) },
+        by_xvda: function (a, b) { return sorters.generic_float(a.vitals.disk.system.percent, b.vitals.disk.system.percent) },
+        by_xvdb: function (a, b) { return sorters.generic_float(a.vitals.disk.ephemeral ? a.vitals.disk.ephemeral.percent : -1, b.vitals.disk.ephemeral ? b.vitals.disk.ephemeral.percent : -1) },
+        by_xvdf: function (a, b) { return sorters.generic_float(a.vitals.disk.persistent ? a.vitals.disk.persistent.percent : -1, b.vitals.disk.persistent ? b.vitals.disk.persistent.percent : -1) },
+        by_1m: function (a, b) { return sorters.generic_float(a.vitals.load[0], b.vitals.load[0]) },
+        by_l5m: function (a, b) { return sorters.generic_float(a.vitals.load[1], b.vitals.load[1]) },
+        by_15m: function (a, b) { return sorters.generic_float(a.vitals.load[2], b.vitals.load[2]) },
+        by_at: function (a, b) { return sorters.generic_string(a.at, b.at) },
+      };
+
+      var v = new Vue({
+        el: '#vms',
+
+        data: {
+          sort: 'name',
+          sortReverse: false,
+          ws: null,
+          vms: [],
+        },
+
+        methods: {
+          connect: function() {
+            var that = this;
+            this.ws = new WebSocket('ws://' + window.location.host + '/ws');
+            this.ws.addEventListener('message', function(e) {
+              var msg = JSON.parse(e.data).payload;
+              msg.at = new Date().toString("HH:mm:ss");
+
+              var known = that.vms.some(function (known, knownIdx) {
+                if (known.deployment != msg.deployment || known.job_name != msg.job_name || known.node_id != msg.node_id) {
+                  return false;
+                }
+
+                that.vms.splice(knownIdx, 1, msg);
+
+                return true;
+              });
+
+              if (!known) {
+                that.vms.push(msg);
+              }
+
+              if (!known || this.sort != 'name') {
+                that.sortvms();
+              }
+            });
+          },
+          sortvms: function() {
+            var that = this;
+
+            if (arguments[0]) {
+              if (this.sort == arguments[0]) {
+                this.sortReverse = !this.sortReverse;
+              } else {
+                this.sort = arguments[0];
+                this.sortReverse = false;
+              }
+            }
+
+            that.vms.sort(function (a, b) {
+              var s = sorters['by_' + that.sort](a, b);
+
+              return (s ? s : sorters.by_name(a, b)) * (that.sortReverse ? -1 : 1);
+            });
+          }
+        },
+
+        created: function() {
+          this.connect();
+        }
+      });
+    </script>
+  </body>
+</html>
