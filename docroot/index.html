@@ -5,42 +5,105 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tachyons/4.7.2/tachyons.min.css" integrity="sha256-Ja0Q+rWNdWf54uvcqwyPBEgvSE+1HMqud1vsKzb8SEo=" crossorigin="anonymous" />
   </head>
   <body class="bg-black-90 code ma0 white-90">
-    <div id="vms">
-      <section class="code">
-        <table class="w-100">
-          <thead>
-            <tr class="pointer white-50">
-              <th class="tl" v-on:click="sortvms('name')">name / id [deployment]</th>
-              <th v-on:click="sortvms('job_state')">state</th>
-              <th v-on:click="sortvms('xvda')">xvda</th>
-              <th v-on:click="sortvms('xvdb')">xvdb</th>
-              <th v-on:click="sortvms('xvdf')">xvdf</th>
-              <th v-on:click="sortvms('1m')">1m</th>
-              <th v-on:click="sortvms('5m')">5m</th>
-              <th v-on:click="sortvms('15m')">15m</th>
-              <th class="tr" v-on:click="sortvms('at')">at</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="vm in vms">
-              <td v-bind:title="vm.deployment">{{vm.job}}/{{vm.node_id}}</td>
-              <td class="tc"><span v-bind:class="[vm.job_state != 'running' ? 'dark-red' : '']">{{vm.job_state}}</span></td>
-              <td class="tc">{{vm.vitals.disk.system.percent}}%</td>
-              <td class="tc"><span v-if="vm.vitals.disk.ephemeral">{{vm.vitals.disk.ephemeral.percent}}%</span><span v-else>&mdash;</span></td>
-              <td class="tc"><span v-if="vm.vitals.disk.persistent">{{vm.vitals.disk.persistent.percent}}%</span><span v-else>&mdash;</span></td>
-              <td class="tc">{{vm.vitals.load[0]}}</td>
-              <td class="tc">{{vm.vitals.load[1]}}</td>
-              <td class="tc">{{vm.vitals.load[2]}}</td>
-              <td class="tr">{{vm.at}}</td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
+    <div id="vue">
+      <div><Chart id="default" title="Load Average" :data="stats"></Chart></div>
+      <div>
+        <section class="code">
+          <table class="w-100">
+            <thead>
+              <tr class="pointer white-50">
+                <th class="tl" v-on:click="sortvms('name')">name / id [deployment]</th>
+                <th v-on:click="sortvms('job_state')">state</th>
+                <th v-on:click="sortvms('xvda')">xvda</th>
+                <th v-on:click="sortvms('xvdb')">xvdb</th>
+                <th v-on:click="sortvms('xvdf')">xvdf</th>
+                <th v-on:click="sortvms('1m')">1m</th>
+                <th v-on:click="sortvms('5m')">5m</th>
+                <th v-on:click="sortvms('15m')">15m</th>
+                <th class="tr" v-on:click="sortvms('at')">at</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="vm in vms">
+                <td v-bind:title="vm.deployment">{{vm.job}}/{{vm.node_id}}</td>
+                <td class="tc"><span v-bind:class="[vm.job_state != 'running' ? 'dark-red' : '']">{{vm.job_state}}</span></td>
+                <td class="tc">{{vm.vitals[0].disk.system.percent}}%</td>
+                <td class="tc"><span v-if="vm.vitals[0].disk.ephemeral">{{vm.vitals[0].disk.ephemeral.percent}}%</span><span v-else>&mdash;</span></td>
+                <td class="tc"><span v-if="vm.vitals[0].disk.persistent">{{vm.vitals[0].disk.persistent.percent}}%</span><span v-else>&mdash;</span></td>
+                <td class="tc">{{vm.vitals[0].load[0]}}</td>
+                <td class="tc">{{vm.vitals[0].load[1]}}</td>
+                <td class="tc">{{vm.vitals[0].load[2]}}</td>
+                <td class="tr">{{vm.at}}</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+      </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.3.3/vue.min.js" integrity="sha256-dCvRWClQPYqeAQPjy3igNtsd9//GfxEAKN6Fx/VuYzw=" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/datejs/1.0/date.min.js" integrity="sha256-xljKCznmrf+eJGt+Yxyo+Z3KHpxlppBZSjyDlutbOh0=" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highcharts/5.0.12/highcharts.js" integrity="sha256-zXVQoymYrmnVtdQCloLcwiI2rnLzkVk4C3UPUoFPC7M=" crossorigin="anonymous"></script>
     <script>
+      Highcharts.setOptions({
+        global: {
+          useUTC: false
+        },
+        // https://github.com/highcharts/highcharts/blob/master/js/themes/dark-blue.js
+        colors: ['#dddf0d', '#55bf3b', '#df5353', '#7798bf', '#aaeeee', '#ff0066', '#eeaaee', '#55bf3b', '#df5353', '#7798bf', '#aaeeee'],
+        chart: {
+          backgroundColor: '#191919',
+          borderWidth: 0,
+          plotBorderWidth: 0
+        },
+        xAxis: {
+          gridLineColor: '#333333',
+          gridLineWidth: 1,
+          labels: {
+            style: {
+              color: '#a0a0a0'
+            }
+          },
+          lineColor: '#a0a0a0',
+          tickColor: '#a0a0a0',
+          title: {
+            style: {
+              color: '#cccccc'
+            }
+          }
+        },
+        yAxis: {
+          gridLineColor: '#333333',
+          labels: {
+            style: {
+              color: '#a0a0a0'
+            }
+          },
+          lineColor: '#a0a0a0',
+          minorTickInterval: null,
+          tickColor: '#a0a0a0',
+          tickWidth: 1,
+          title: {
+            style: {
+              color: '#cccccc'
+            }
+          }
+        },
+        tooltip: {
+          backgroundColor: 'rgba(0, 0, 0, 0.75)',
+          style: {
+            color: '#f0f0f0'
+          }
+        },
+        plotOptions: {
+          spline: {
+            marker: {
+              lineColor: '#333333'
+            }
+          }
+        }
+      });
+
       var sorters = {
         generic_string: function (a, b) {
           return a.localeCompare(b);
@@ -69,19 +132,108 @@
           return 1;
         },
         by_job_state: function (a, b) { return sorters.generic_string(a.job_state, b.job_state) },
-        by_xvda: function (a, b) { return sorters.generic_float(a.vitals.disk.system.percent, b.vitals.disk.system.percent) },
-        by_xvdb: function (a, b) { return sorters.generic_float(a.vitals.disk.ephemeral ? a.vitals.disk.ephemeral.percent : -1, b.vitals.disk.ephemeral ? b.vitals.disk.ephemeral.percent : -1) },
-        by_xvdf: function (a, b) { return sorters.generic_float(a.vitals.disk.persistent ? a.vitals.disk.persistent.percent : -1, b.vitals.disk.persistent ? b.vitals.disk.persistent.percent : -1) },
-        by_1m: function (a, b) { return sorters.generic_float(a.vitals.load[0], b.vitals.load[0]) },
-        by_l5m: function (a, b) { return sorters.generic_float(a.vitals.load[1], b.vitals.load[1]) },
-        by_15m: function (a, b) { return sorters.generic_float(a.vitals.load[2], b.vitals.load[2]) },
+        by_xvda: function (a, b) { return sorters.generic_float(a.vitals[0].disk.system.percent, b.vitals[0].disk.system.percent) },
+        by_xvdb: function (a, b) { return sorters.generic_float(a.vitals[0].disk.ephemeral ? a.vitals[0].disk.ephemeral.percent : -1, b.vitals[0].disk.ephemeral ? b.vitals[0].disk.ephemeral.percent : -1) },
+        by_xvdf: function (a, b) { return sorters.generic_float(a.vitals[0].disk.persistent ? a.vitals[0].disk.persistent.percent : -1, b.vitals[0].disk.persistent ? b.vitals[0].disk.persistent.percent : -1) },
+        by_1m: function (a, b) { return sorters.generic_float(a.vitals[0].load[0], b.vitals[0].load[0]) },
+        by_l5m: function (a, b) { return sorters.generic_float(a.vitals[0].load[1], b.vitals[0].load[1]) },
+        by_15m: function (a, b) { return sorters.generic_float(a.vitals[0].load[2], b.vitals[0].load[2]) },
         by_at: function (a, b) { return sorters.generic_string(a.at, b.at) },
       };
 
+      var Chart = Vue.component(
+        'Chart',
+        {
+          props: ['id', 'data', 'title'],
+          template: [
+            '<div v-bind:id="\'chartme-\' + id"></div>'
+          ].join("\n"),
+          data: function() {
+            return {
+              chart: null
+            };
+          },
+          methods: {
+            redraw: function() {
+              var that = this;
+              that.data.forEach(function (series) {
+                var knownSeries = that.chart.get(series.id);
+
+                if (knownSeries) {
+                  knownSeries.setData(series.data, false, false);
+                } else {
+                  that.chart.addSeries(series, false, false);
+                }
+              });
+
+              that.chart.redraw();
+            }
+          },
+          watch: {
+            title: function() {
+              this.redraw();
+            },
+            data: function() {
+              this.redraw();
+            }
+          },
+          mounted: function() {
+            this.chart = new Highcharts.chart({
+              chart: {
+                height: '300px',
+                renderTo: 'chartme-' + this.id,
+                type: 'spline'
+              },
+              credits: {
+                enabled: false
+              },
+              legend: {
+                enabled: false
+              },
+              plotOptions: {
+                spline: {
+                  pointInterval: 30000,
+                  marker: {
+                    radius: 1
+                  }
+                }
+              },
+              title: {
+                text: null
+              },
+              tooltip: {
+                formatter: function () {
+                  return this.series.name + '<br />' +
+                    '1m at ' + Highcharts.dateFormat('%H:%M:%S', this.x) + ' = ' + Highcharts.numberFormat(this.y, 2);
+                }
+              },
+              xAxis: {
+                dateTimeLabelFormats: {
+                  millisecond: '%H:%M',
+                  second: '%H:%M'
+                },
+                tickInterval: 60000,
+                type: 'datetime'
+              },
+              yAxis: {
+                title: {
+                  text: '1m'
+                }
+              },
+            });
+          }
+        }
+      );
+
       var v = new Vue({
-        el: '#vms',
+        el: '#vue',
+
+        components: [
+          Chart
+        ],
 
         data: {
+          stats: [],
           sort: 'name',
           sortReverse: false,
           ws: null,
@@ -94,20 +246,43 @@
             this.ws = new WebSocket('ws://' + window.location.host + '/ws');
             this.ws.addEventListener('message', function(e) {
               var msg = JSON.parse(e.data).payload;
-              msg.at = new Date().toString("HH:mm:ss");
+              var now = new Date();
+              var nowRound = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes(), now.getSeconds() - (now.getSeconds() % 15));
+
+              msg.at = now.toString("HH:mm:ss");
+              msg.vitals.at = now;
 
               var known = that.vms.some(function (known, knownIdx) {
-                if (known.deployment != msg.deployment || known.job_name != msg.job_name || known.node_id != msg.node_id) {
+                if (known.node_id != msg.node_id) {
                   return false;
                 }
 
-                that.vms.splice(knownIdx, 1, msg);
+                that.vms[knownIdx].at = msg.at;
+                that.vms[knownIdx].job_state = msg.job_state;
+                that.vms[knownIdx].vitals.unshift(msg.vitals);
+                Vue.set(that.vms, knownIdx, that.vms[knownIdx]);
+
+                that.stats[knownIdx].data.push({
+                  x: nowRound,
+                  y: parseFloat(msg.vitals.load[0])
+                });
+                Vue.set(that.stats, knownIdx, that.stats[knownIdx]);
 
                 return true;
               });
 
               if (!known) {
+                msg.vitals = [msg.vitals];
+
                 that.vms.push(msg);
+                that.stats.push({
+                  id: msg.node_id,
+                  name: msg.deployment + '<br/><strong>' + msg.job + '/' + msg.node_id + '</strong>',
+                  data: [{
+                    x: nowRound,
+                    y: parseFloat(msg.vitals[0].load[0])
+                  }]
+                });
               }
 
               if (!known || this.sort != 'name') {
